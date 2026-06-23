@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>스마트 시차 적응 수면 계산기</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; background-color: #f4f6f9; color: #333; margin: 0; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        h1 { text-align: center; color: #1a73e8; font-size: 24px; margin-bottom: 25px; }
+        .form-group { margin-bottom: 18px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 14px; }
+        input, select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; box-sizing: border-box; font-size: 15px; }
+        button { width: 100%; padding: 12px; background-color: #1a73e8; color: white; border: none; border-radius: 6px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 10px; }
+        button:hover { background-color: #155cb4; }
+        .result { margin-top: 30px; padding: 20px; background-color: #e8f0fe; border-left: 5px solid #1a73e8; border-radius: 4px; display: none; }
+        .result h3 { margin-top: 0; color: #1967d2; }
+        .timeline { margin: 15px 0; padding: 10px; background: #fff; border: 1px solid #cbd5e1; border-radius: 6px; }
+        .step { margin-bottom: 12px; font-size: 15px; line-height: 1.5; }
+        .highlight { font-weight: bold; color: #d93025; }
+        .sleep { font-weight: bold; color: #137333; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>✈️ 인플라이트 수면 계산기</h1>
+    
+    <div class="form-group">
+        <label for="depTime">출발 현지 시간 (비행기 이륙 시간)</label>
+        <input type="time" id="depTime" value="10:00">
+    </div>
+    
+    <div class="form-group">
+        <label for="duration">총 비행 시간 (시간)</label>
+        <input type="number" id="duration" value="12" min="1" max="24">
+    </div>
+    
+    <div class="form-group">
+        <label for="jetlag">도착지와 한국의 시차 (시간)</label>
+        <select id="jetlag">
+            <option value="14">미국 동부 (뉴욕 등) : +14시간</option>
+            <option value="17">미국 서부 (LA 등) : +17시간</option>
+            <option value="-8">유럽 (파리/런던 등) : -8시간</option>
+            <option value="-1">동남아 (방콕 등) : -1시간</option>
+            <option value="1">일본/호주 (시드니) : +1시간</option>
+        </select>
+    </div>
+
+    <button onclick="calculateSleep()">맞춤 수면 스케줄 계산하기</button>
+
+    <div class="result" id="resultBox">
+        <h3>📊 당신의 비행기 안 수면 가이드</h3>
+        <div id="content"></div>
+    </div>
+</div>
+
+<script>
+function calculateSleep() {
+    const depTime = document.getElementById('depTime').value;
+    const duration = parseInt(document.getElementById('duration').value);
+    const jetlag = parseInt(document.getElementById('jetlag').value);
+    
+    if(!depTime || isNaN(duration)) {
+        alert('모든 정보를 올바르게 입력해주세요.');
+        return;
+    }
+
+    // 간단한 시차 적응 알고리즘 기반 스케줄링
+    let resultHTML = '';
+    
+    if (jetlag > 0) {
+        // 동쪽으로 갈 때 (미국 방면): 비행 초반에 깨어있고, 후반부에 자야함
+        let sleepStart = Math.round(duration * 0.4);
+        let sleepDuration = Math.round(duration * 0.5);
+        
+        resultHTML += `<div class="step">💡 <b>탑승 직후 (~${sleepStart}시간 동안):</b> 목적지는 밤을 향해 가고 있습니다. <span class="highlight">최대한 깨어 있으세요!</span> 영화를 보거나 독서등을 켜서 빛을 받으세요.</div>`;
+        resultHTML += `<div class="step">😴 <b>이륙 후 ${sleepStart}시간 뒤부터 (~${sleepDuration}시간 동안):</b> 이제 목적지의 밤 시간입니다. 안대와 귀마개를 착용하고 <span class="sleep">꿀잠을 청하세요.</span> (추천 수면: 약 ${sleepDuration}시간)</div>`;
+        resultHTML += `<div class="step">☀️ <b>착륙 전 마지막 1~2시간:</b> 기내식을 먹으며 잠을 깨고, 도착하자마자 현지 아침/낮 햇빛을 강하게 받으세요.</div>`;
+    } else {
+        // 서쪽으로 갈 때 (유럽/동남아 방면): 비행 초반에 눈을 붙이고, 후반부에 깨어있어야 함
+        let sleepDuration = Math.round(duration * 0.4);
+        
+        resultHTML += `<div class="step">😴 <b>탑승 직후 (~${sleepDuration}시간 동안):</b> 비행기 이륙 후 안정권에 접어들면 <span class="sleep">곧바로 짧은 수면</span>을 취해 피로를 푸세요.</div>`;
+        resultHTML += `<div class="step">💡 <b>그 이후 ~ 착륙할 때까지:</b> 목적지의 낮 시간에 맞춰 <span class="highlight">절대 자지 말고 깨어 있으세요.</span> 음악을 듣거나 가벼운 스트레칭을 추천합니다.</div>`;
+        resultHTML += `<div class="step">🌆 <b>도착 후:</b> 현지 시간으로 최소 저녁 9시까지 버틴 후 취침해야 첫날 시차 적응에 성공합니다.</div>`;
+    }
+
+    document.getElementById('content').innerHTML = resultHTML;
+    document.getElementById('resultBox').style.display = 'block';
+}
+</script>
+
+</body>
+</html>
