@@ -1,0 +1,914 @@
+<title>저승길 부적</title>
+<meta name="description" content="부적 카드로 덱을 쌓아 저승차사를 물리치는 덱빌딩 로그라이크">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=East+Sea+Dokdo&family=Gowun+Dodum&family=Noto+Serif+KR:wght@700;900&display=swap">
+<style>
+/* Layout: one night-road column — top status bar, then the current scene (map / battle / shop), hand of talisman cards pinned under the battle. Single dark world by choice. */
+:root {
+  color-scheme: dark;
+  --night: #10121b;
+  --night-2: #191c2a;
+  --night-3: #242a3d;
+  --line: #363d57;
+  --fg: #ece4cf;
+  --muted: #9b97ab;
+  --hanji: #ecd894;
+  --hanji-2: #d9bf6f;
+  --cinnabar: #c63a2e;
+  --cinnabar-2: #e2574a;
+  --ink: #2a2018;
+  --indigo-ink: #24346a;
+  --violet-ink: #5b2f6e;
+  --jade: #5fae98;
+  --gold: #e3b04f;
+  --poison: #93c552;
+  --f-display: "East Sea Dokdo", "Nanum Brush Script", cursive;
+  --f-body: "Gowun Dodum", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --f-glyph: "Noto Serif KR", "Batang", "Songti SC", serif;
+  --cw: 116px;
+}
+* { box-sizing: border-box; }
+html, body { min-height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 70% 40% at 80% -5%, rgba(236, 216, 148, .10), transparent 70%),
+    radial-gradient(ellipse 60% 50% at 0% 100%, rgba(198, 58, 46, .08), transparent 70%),
+    var(--night);
+  background-attachment: fixed;
+  color: var(--fg);
+  font-family: var(--f-body);
+  font-size: 15px;
+  line-height: 1.5;
+}
+#app { max-width: 980px; margin: 0 auto; padding-inline: 16px; padding-block: 12px 32px; }
+.num { font-variant-numeric: tabular-nums; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:disabled { cursor: default; }
+:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+
+.btn {
+  border: 1px solid var(--hanji-2); background: var(--hanji); color: var(--ink);
+  padding: .55em 1.2em; border-radius: 3px; font-weight: 700; letter-spacing: .02em;
+  box-shadow: 0 2px 0 var(--hanji-2);
+}
+.btn:hover:not(:disabled) { background: #f4e3a8; }
+.btn:disabled { opacity: .45; }
+.btn.ghost { background: transparent; color: var(--fg); border-color: var(--line); box-shadow: none; }
+.btn.ghost:hover:not(:disabled) { background: var(--night-3); }
+.btn.red { background: var(--cinnabar); color: var(--hanji); border-color: #8f2a21; box-shadow: 0 2px 0 #8f2a21; }
+.btn.red:hover:not(:disabled) { background: var(--cinnabar-2); }
+.btn.small { padding: .3em .8em; font-size: 13px; }
+
+/* top bar */
+.bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px;
+  padding-block: 8px; margin-bottom: 14px; border-bottom: 1px solid var(--line);
+}
+.stat { font-size: 14px; }
+.stat b { color: var(--muted); font-weight: 400; font-size: 12px; letter-spacing: .08em; margin-right: 4px; }
+.stat.hp .num { color: var(--cinnabar-2); font-weight: 700; }
+.stat.gold .num { color: var(--gold); font-weight: 700; }
+.relics { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
+.relic {
+  width: 30px; height: 30px; border-radius: 50%; border: 1.5px solid var(--gold);
+  background: var(--night-2); color: var(--gold); font-family: var(--f-glyph); font-weight: 900; font-size: 15px; padding: 0;
+}
+
+/* title */
+.title { display: grid; gap: 28px; justify-items: center; text-align: center; padding-block: 28px 8px; }
+.title h1 { font-family: var(--f-display); font-weight: 400; font-size: clamp(72px, 16vw, 128px); line-height: .9; color: var(--hanji); letter-spacing: .04em; }
+.title h1 span { color: var(--cinnabar-2); }
+.title .sub { color: var(--muted); max-width: 32em; }
+.fan { display: flex; justify-content: center; padding-block: 8px 12px; }
+.fan .card { margin-inline: -14px; }
+.fan .card:nth-child(1) { transform: rotate(-9deg) translateY(10px); }
+.fan .card:nth-child(3) { transform: rotate(9deg) translateY(10px); }
+.title .actions { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.how { text-align: left; max-width: 36em; color: var(--muted); font-size: 14px; border-top: 1px solid var(--line); padding-top: 16px; }
+.how dt { color: var(--fg); font-weight: 700; margin-top: 8px; }
+.how dd { margin: 0; }
+
+/* card */
+.card {
+  --tone: var(--cinnabar);
+  width: var(--cw); height: calc(var(--cw) * 1.48); flex: none; position: relative;
+  border: 0; border-radius: 2px; padding: 22px 8px 8px; color: var(--ink);
+  background:
+    repeating-linear-gradient(0deg, rgba(42, 32, 24, .035) 0 2px, transparent 2px 5px),
+    linear-gradient(170deg, #f2e1a2, var(--hanji) 45%, var(--hanji-2));
+  box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5.5px var(--tone), 0 6px 14px rgba(0, 0, 0, .45);
+  display: flex; flex-direction: column; align-items: center; text-align: center;
+  transition: transform .15s ease, box-shadow .15s ease, opacity .15s;
+}
+.card.t-skl { --tone: var(--indigo-ink); }
+.card.t-pow { --tone: var(--violet-ink); }
+.card.t-curse { --tone: #555; background: linear-gradient(170deg, #9c9483, #7a7366); }
+.card .cost {
+  position: absolute; top: -8px; left: -8px; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--tone); color: var(--hanji); font-weight: 700; font-size: 16px;
+  display: grid; place-items: center; box-shadow: 0 0 0 2px var(--night);
+}
+.card .cname { font-weight: 700; font-size: 13.5px; line-height: 1.2; color: var(--tone); }
+.card.up .cname::after { content: "+"; color: #2f7d4f; }
+.card .glyph { font-family: var(--f-glyph); font-weight: 900; font-size: calc(var(--cw) * .42); line-height: 1.15; color: var(--tone); opacity: .9; flex: 1; display: grid; place-items: center; }
+.card .cdesc { font-size: 11.5px; line-height: 1.35; min-height: 3.6em; }
+.card .ctype { position: absolute; bottom: -8px; font-size: 10px; letter-spacing: .1em; background: var(--tone); color: var(--hanji); padding: 0 6px; border-radius: 2px; }
+.hand .card:hover:not(.off), .pick .card:hover { transform: translateY(-8px); }
+.card.sel { transform: translateY(-16px); box-shadow: inset 0 0 0 4px transparent, inset 0 0 0 5.5px var(--tone), 0 0 0 3px var(--gold), 0 10px 22px rgba(0, 0, 0, .55); }
+.card.off { opacity: .55; filter: saturate(.6); }
+
+/* map */
+.scene-head { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: baseline; justify-content: space-between; margin-bottom: 10px; }
+.scene-head h2 { font-family: var(--f-display); font-weight: 400; font-size: 40px; color: var(--hanji); line-height: 1; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; font-size: 12.5px; color: var(--muted); }
+.legend span b { font-family: var(--f-glyph); color: var(--fg); margin-right: 3px; }
+.mapwrap { max-height: min(68vh, 620px); overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; background: rgba(25, 28, 42, .6); }
+.map { position: relative; max-width: 440px; margin: 0 auto; }
+.map svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.map line { stroke: var(--line); stroke-width: 2; stroke-dasharray: 2 5; stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.map line.on { stroke: var(--hanji-2); }
+.map line.done { stroke: var(--cinnabar); stroke-dasharray: none; }
+.node {
+  position: absolute; transform: translate(-50%, -50%); width: 42px; height: 42px; border-radius: 50%;
+  border: 1.5px solid var(--line); background: var(--night-2); color: var(--muted);
+  font-family: var(--f-glyph); font-weight: 900; font-size: 19px; padding: 0; display: grid; place-items: center;
+}
+.node.t-elite { color: var(--cinnabar-2); }
+.node.t-boss { width: 64px; height: 64px; font-size: 32px; border-color: var(--cinnabar); color: var(--cinnabar-2); }
+.node.av { background: var(--hanji); color: var(--cinnabar); border-color: var(--hanji); animation: pulse 1.6s ease-in-out infinite; }
+.node.av:hover { transform: translate(-50%, -50%) scale(1.12); }
+.node.done { background: var(--cinnabar); color: var(--hanji); border-color: var(--cinnabar); opacity: .8; }
+.node.here { box-shadow: 0 0 0 3px var(--gold); opacity: 1; }
+@keyframes pulse { 50% { box-shadow: 0 0 0 7px rgba(236, 216, 148, .18); } }
+
+/* combat */
+.arena { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-end; justify-content: space-between; min-height: 230px; padding-block: 8px; }
+.mine { flex: 0 1 200px; }
+.foes { flex: 1 1 300px; display: flex; flex-wrap: wrap; gap: 14px; justify-content: flex-end; }
+.ent { position: relative; width: 150px; padding: 10px; border-radius: 4px; text-align: center; display: grid; gap: 4px; justify-items: center; border: 1px solid transparent; }
+.ent.big { width: 180px; }
+.foe.targetable { border-color: var(--gold); background: rgba(227, 176, 79, .08); cursor: crosshair; }
+.foe.acting .seal { box-shadow: 0 0 0 4px var(--cinnabar-2); }
+.seal {
+  width: 72px; height: 72px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--f-glyph); font-weight: 900; font-size: 40px; color: var(--hanji);
+  background: radial-gradient(circle at 35% 30%, #34384f, var(--night-2)); border: 2px solid var(--line);
+  transition: box-shadow .2s;
+}
+.big .seal { width: 92px; height: 92px; font-size: 52px; border-color: var(--cinnabar); color: var(--cinnabar-2); }
+.me-seal { color: var(--gold); border-color: var(--gold); }
+.ename { font-weight: 700; font-size: 14px; }
+.hpbar { position: relative; width: 100%; height: 16px; background: #2b1a1d; border-radius: 2px; overflow: visible; }
+.hpbar i { position: absolute; inset: 0 auto 0 0; background: linear-gradient(var(--cinnabar-2), var(--cinnabar)); border-radius: 2px; transition: width .3s; }
+.hpbar span { position: relative; font-size: 11px; line-height: 16px; color: #fff; text-shadow: 0 1px 1px #000; }
+.hpbar em { position: absolute; left: -12px; top: -6px; font-style: normal; min-width: 26px; height: 26px; padding: 0 4px; display: grid; place-items: center; border-radius: 6px 6px 13px 13px; background: var(--jade); color: var(--night); font-weight: 700; font-size: 12px; }
+.blocked .hpbar i { background: linear-gradient(#7cc5b0, var(--jade)); }
+.sts { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; min-height: 20px; }
+.chip { font-size: 11px; padding: 0 6px; border-radius: 9px; border: 1px solid; line-height: 17px; }
+.chip.buff { color: var(--gold); border-color: rgba(227, 176, 79, .5); }
+.chip.debuff { color: var(--cinnabar-2); border-color: rgba(226, 87, 74, .5); }
+.chip.poison { color: var(--poison); border-color: rgba(147, 197, 82, .5); }
+.chip.pw { color: #c9a6e6; border-color: rgba(201, 166, 230, .45); }
+.intent { display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; align-items: center; min-height: 26px; }
+.intent span { font-family: var(--f-glyph); font-weight: 700; font-size: 13px; padding: 1px 6px; border-radius: 3px; background: var(--night-3); }
+.intent .i-atk { color: var(--cinnabar-2); }
+.intent .i-def { color: var(--jade); }
+.intent .i-buf { color: var(--gold); }
+.intent .i-deb { color: #c9a6e6; }
+.intent small { width: 100%; color: var(--muted); font-size: 11px; }
+.hint { min-height: 22px; text-align: center; color: var(--gold); font-size: 13px; }
+.hud { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding-block: 8px; border-top: 1px solid var(--line); }
+.energy {
+  width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center; align-content: center;
+  background: radial-gradient(circle at 40% 35%, var(--cinnabar-2), var(--cinnabar) 60%, #7d2219);
+  color: var(--hanji); box-shadow: 0 0 18px rgba(198, 58, 46, .45);
+}
+.energy > span { font-size: 24px; font-weight: 700; line-height: 1; }
+.energy small { font-size: 11px; opacity: .8; line-height: 1; }
+.pile { background: none; border: 1px solid var(--line); border-radius: 3px; padding: .35em .7em; font-size: 13px; color: var(--muted); }
+.pile b { color: var(--fg); }
+.btn.end { margin-left: auto; }
+.hand { display: flex; gap: 10px; overflow-x: auto; padding: 32px 12px 18px; min-height: calc(var(--cw) * 1.48 + 44px); }
+.hand .empty { color: var(--muted); margin: auto; }
+@keyframes shake { 20% { transform: translateX(-6px); } 40% { transform: translateX(5px); } 60% { transform: translateX(-3px); } 80% { transform: translateX(2px); } }
+.hit .seal { animation: shake .3s; }
+#fxl { position: fixed; inset: 0; pointer-events: none; z-index: 30; }
+.float { position: fixed; transform: translate(-50%, 0); font-weight: 700; font-size: 20px; text-shadow: 0 2px 3px #000; animation: rise .9s ease-out forwards; white-space: nowrap; }
+.float.dmg { color: #ff7b6e; font-size: 24px; }
+.float.blk { color: var(--jade); }
+.float.heal { color: var(--poison); }
+.float.buff { color: var(--gold); font-size: 15px; }
+.float.debuff { color: #c9a6e6; font-size: 15px; }
+@keyframes rise { to { transform: translate(-50%, -42px); opacity: 0; } }
+
+/* panels: reward, rest, shop, event */
+.panel { max-width: 640px; margin: 12px auto 0; display: grid; gap: 16px; }
+.panel h2 { font-family: var(--f-display); font-weight: 400; font-size: 44px; line-height: 1; color: var(--hanji); }
+.panel p.lead { color: var(--muted); margin: 0; max-width: 36em; }
+.list { display: grid; gap: 8px; }
+.row {
+  display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--night-2); text-align: left; width: 100%;
+}
+.row:hover:not(:disabled) { border-color: var(--hanji-2); }
+.row:disabled { opacity: .45; }
+.row .ic { flex: none; width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; font-family: var(--f-glyph); font-weight: 900; font-size: 19px; background: var(--night-3); color: var(--gold); }
+.row .tx { flex: 1; min-width: 0; }
+.row .tx small { display: block; color: var(--muted); font-size: 12.5px; }
+.row .price { color: var(--gold); font-weight: 700; }
+.pick { display: flex; flex-wrap: wrap; gap: 18px 14px; justify-content: center; padding-block: 12px; }
+.pick > div { display: grid; gap: 10px; justify-items: center; }
+.price-tag { font-size: 13px; color: var(--gold); font-weight: 700; }
+.price-tag.no { color: var(--muted); }
+.sold { opacity: .3; pointer-events: none; }
+.choices { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.choice { display: grid; gap: 6px; justify-items: start; padding: 16px; border: 1px solid var(--line); border-radius: 4px; background: var(--night-2); text-align: left; }
+.choice:hover:not(:disabled) { border-color: var(--hanji-2); }
+.choice:disabled { opacity: .45; }
+.choice .ic { font-family: var(--f-glyph); font-weight: 900; font-size: 34px; color: var(--hanji); line-height: 1; }
+.choice small { color: var(--muted); }
+.event-glyph { font-family: var(--f-glyph); font-weight: 900; font-size: 64px; color: var(--cinnabar-2); line-height: 1; }
+.endcard { text-align: center; justify-items: center; padding-block: 24px; }
+.endcard .event-glyph { font-size: 96px; }
+.tally { display: flex; gap: 24px; justify-content: center; flex-wrap: wrap; color: var(--muted); }
+.tally b { display: block; color: var(--fg); font-size: 22px; }
+
+/* modal + toast */
+#modal { position: fixed; inset: 0; z-index: 40; background: rgba(8, 9, 14, .86); overflow-y: auto; padding: 24px 16px; }
+#modal .inner { max-width: 900px; margin: 0 auto; display: grid; gap: 12px; }
+#modal h3 { font-family: var(--f-display); font-weight: 400; font-size: 36px; color: var(--hanji); }
+#modal .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+#toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); z-index: 50; background: var(--night-3); border: 1px solid var(--hanji-2); color: var(--fg); padding: 8px 16px; border-radius: 4px; font-size: 14px; max-width: calc(100% - 32px); text-align: center; }
+
+@media (max-width: 560px) {
+  :root { --cw: 96px; }
+  .ent { width: 128px; padding: 6px; }
+  .ent.big { width: 150px; }
+  .seal { width: 58px; height: 58px; font-size: 32px; }
+  .big .seal { width: 76px; height: 76px; font-size: 42px; }
+  .mine { flex-basis: 100%; display: flex; justify-content: flex-start; order: 2; }
+  .foes { justify-content: center; }
+  .card .cdesc { font-size: 10.5px; }
+  .card .cname { font-size: 12.5px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+}
+</style>
+
+<div id="app"></div>
+<div id="fxl" aria-hidden="true"></div>
+<div id="modal" hidden></div>
+<div id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+/* ---------- utils ---------- */
+const rnd = n => Math.floor(Math.random() * n);
+const pick = a => a[rnd(a.length)];
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = rnd(i + 1); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const SAVE_KEY = 'jeoseunggil-run-v1';
+let G = null;
+let pickCb = null;
+
+/* ---------- data ---------- */
+const TYPE = { atk: '공격', skl: '기술', pow: '능력', curse: '저주' };
+const ST = {
+  str: ['힘', 'buff', '공격 피해가 수치만큼 증가'],
+  dex: ['민첩', 'buff', '카드로 얻는 방어도가 수치만큼 증가'],
+  ritual: ['의식', 'buff', '매 턴 시작 시 힘이 수치만큼 증가'],
+  weak: ['약화', 'debuff', '주는 공격 피해 25% 감소 (턴마다 1 감소)'],
+  vuln: ['취약', 'debuff', '받는 공격 피해 50% 증가 (턴마다 1 감소)'],
+  poison: ['독', 'poison', '턴 시작 시 수치만큼 체력을 잃고 1 감소'],
+};
+const PW = { fumes: '독무', armor: '금강신', barricade: '부동명왕', club: '방망이' };
+
+const CARDS = {
+  strike:   { n: '베기', g: '斬', t: 'atk', r: 'b', c: 1, tg: 1, d: u => `피해 ${u ? 9 : 6}`, p: (T, u) => hit(T, u ? 9 : 6) },
+  defend:   { n: '막기', g: '防', t: 'skl', r: 'b', c: 1, d: u => `방어도 ${u ? 8 : 5}`, p: (T, u) => guard(u ? 8 : 5) },
+  ward:     { n: '액막이', g: '厄', t: 'skl', r: 'b', c: 0, d: u => `방어도 ${u ? 5 : 3}<br>카드 1장 뽑기`, p: (T, u) => { guard(u ? 5 : 3); draw(1); } },
+  twin:     { n: '연타', g: '連', t: 'atk', r: 'c', c: 1, tg: 1, d: u => `피해 ${u ? 7 : 5} × 2`, p: (T, u) => { hit(T, u ? 7 : 5); hit(T, u ? 7 : 5); } },
+  bash:     { n: '강타', g: '擊', t: 'atk', r: 'c', c: 2, tg: 1, d: u => `피해 ${u ? 10 : 8}<br>취약 ${u ? 3 : 2}`, p: (T, u) => { hit(T, u ? 10 : 8); debuff(T, 'vuln', u ? 3 : 2); } },
+  cleave:   { n: '휩쓸기', g: '掃', t: 'atk', r: 'c', c: 1, d: u => `모든 적에게<br>피해 ${u ? 11 : 8}`, p: (T, u) => hitAll(u ? 11 : 8) },
+  shrug:    { n: '호신부', g: '護', t: 'skl', r: 'c', c: 1, d: u => `방어도 ${u ? 11 : 8}<br>카드 1장 뽑기`, p: (T, u) => { guard(u ? 11 : 8); draw(1); } },
+  stab:     { n: '독침', g: '針', t: 'atk', r: 'c', c: 1, tg: 1, d: u => `피해 ${u ? 8 : 6}<br>독 ${u ? 4 : 3}`, p: (T, u) => { hit(T, u ? 8 : 6); debuff(T, 'poison', u ? 4 : 3); } },
+  fog:      { n: '독안개', g: '霧', t: 'skl', r: 'c', c: 1, d: u => `모든 적에게<br>독 ${u ? 6 : 4}`, p: (T, u) => alive().forEach(e => debuff(e, 'poison', u ? 6 : 4)) },
+  daunt:    { n: '기 꺾기', g: '威', t: 'skl', r: 'c', c: 1, tg: 1, d: u => `약화 ${u ? 3 : 2}<br>취약 ${u ? 3 : 2}`, p: (T, u) => { debuff(T, 'weak', u ? 3 : 2); debuff(T, 'vuln', u ? 3 : 2); } },
+  wave:     { n: '반격', g: '反', t: 'atk', r: 'c', c: 1, tg: 1, d: u => `방어도 ${u ? 7 : 5}<br>피해 ${u ? 7 : 5}`, p: (T, u) => { guard(u ? 7 : 5); hit(T, u ? 7 : 5); } },
+  breath:   { n: '숨 고르기', g: '息', t: 'skl', r: 'c', c: 1, d: u => `카드 ${u ? 3 : 2}장 뽑기`, p: (T, u) => draw(u ? 3 : 2) },
+  rain:     { n: '칼날비', g: '雨', t: 'atk', r: 'c', c: 1, d: u => `무작위 적에게<br>피해 3 × ${u ? 4 : 3}`, p: (T, u) => { for (let i = 0; i < (u ? 4 : 3); i++) { const a = alive(); if (!a.length) break; hit(pick(a), 3); } } },
+  heavy:    { n: '혼신의 일격', g: '魂', t: 'atk', r: 'u', c: 2, tg: 1, d: u => `피해 14<br>힘 효과 ${u ? 5 : 3}배`, p: (T, u) => hit(T, 14, u ? 5 : 3) },
+  wall:     { n: '금강부', g: '剛', t: 'skl', r: 'u', c: 2, d: u => `방어도 ${u ? 17 : 13}`, p: (T, u) => guard(u ? 17 : 13) },
+  catalyst: { n: '맹독 촉매', g: '觸', t: 'skl', r: 'u', c: 1, tg: 1, ex: 1, d: u => `대상의 독 ${u ? 3 : 2}배<br>소멸`, p: (T, u) => { const v = T.st.poison || 0; if (v) debuff(T, 'poison', v * (u ? 2 : 1)); } },
+  inflame:  { n: '분노', g: '怒', t: 'pow', r: 'u', c: 1, d: u => `힘 +${u ? 3 : 2}`, p: (T, u) => buff(G.p, 'str', u ? 3 : 2) },
+  footwork: { n: '바람걸음', g: '風', t: 'pow', r: 'u', c: 1, d: u => `민첩 +${u ? 3 : 2}`, p: (T, u) => buff(G.p, 'dex', u ? 3 : 2) },
+  fumes:    { n: '독무', g: '瘴', t: 'pow', r: 'u', c: 1, d: u => `턴 시작마다<br>모든 적에게 독 ${u ? 3 : 2}`, p: (T, u) => power('fumes', u ? 3 : 2) },
+  armor:    { n: '금강신', g: '甲', t: 'pow', r: 'u', c: 1, d: u => `턴 종료마다<br>방어도 ${u ? 4 : 3}`, p: (T, u) => power('armor', u ? 4 : 3) },
+  blood:    { n: '피의 부적', g: '血', t: 'atk', r: 'u', c: 2, ex: 1, d: u => `모든 적에게 피해 ${u ? 9 : 7}<br>막히지 않은 만큼 회복<br>소멸`, p: (T, u) => heal(hitAll(u ? 9 : 7)) },
+  focus:    { n: '기 모으기', g: '氣', t: 'skl', r: 'u', c: 0, ex: 1, d: u => `에너지 +${u ? 3 : 2}<br>소멸`, p: (T, u) => { G.combat.energy += u ? 3 : 2; } },
+  thunder:  { n: '벼락부', g: '雷', t: 'atk', r: 'u', c: 3, tg: 1, d: u => `피해 ${u ? 30 : 22}`, p: (T, u) => hit(T, u ? 30 : 22) },
+  feed:     { n: '악귀 퇴치', g: '退', t: 'atk', r: 'r', c: 1, tg: 1, ex: 1, d: u => `피해 ${u ? 12 : 10}<br>처치 시 최대 체력 +${u ? 4 : 3}<br>소멸`, p: (T, u) => { hit(T, u ? 12 : 10); if (T.hp <= 0) { const n = u ? 4 : 3; G.p.max += n; G.p.hp += n; fx(G.p, `최대 체력 +${n}`, 'heal'); } } },
+  barricade:{ n: '부동명왕', g: '不', t: 'pow', r: 'r', c: u => u ? 2 : 3, d: () => `방어도가 턴 시작 시<br>사라지지 않음`, p: () => power('barricade', 1) },
+  limit:    { n: '천하장사', g: '力', t: 'skl', r: 'r', c: 1, ex: u => !u, d: u => `힘을 2배로${u ? '' : '<br>소멸'}`, p: () => { const s = G.p.st.str || 0; if (s > 0) buff(G.p, 'str', s); } },
+  club:     { n: '도깨비 방망이', g: '棒', t: 'pow', r: 'r', c: u => u ? 2 : 3, d: () => `턴 시작마다<br>에너지 +1`, p: () => power('club', 1) },
+  wound:    { n: '상처', g: '傷', t: 'curse', r: 'x', c: null, d: () => `사용할 수 없음` },
+};
+const costOf = card => { const c = CARDS[card.id].c; return typeof c === 'function' ? c(card.up) : c; };
+const exOf = card => { const e = CARDS[card.id].ex; return typeof e === 'function' ? e(card.up) : !!e; };
+const canUp = card => !card.up && CARDS[card.id].t !== 'curse';
+
+const cyc = arr => (e, t) => arr[t % arr.length];
+const ENEMIES = {
+  wisp:     { n: '도깨비불', g: '火', hp: [13, 17], ai: (e, t) => ((t + e.u) % 2 ? { nm: '불꽃 튀기기', dmg: 3, hits: 2 } : { nm: '달려들기', dmg: 5 }) },
+  ghost:    { n: '물귀신', g: '水', hp: [30, 34], ai: cyc([{ nm: '끌어당기기', dmg: 7 }, { nm: '물안개', block: 6, dmg: 4 }, { nm: '한기', dmg: 5, weak: 2 }]) },
+  toad:     { n: '독두꺼비', g: '蟾', hp: [24, 28], ai: cyc([{ nm: '독 뱉기', dmg: 4, poison: 3 }, { nm: '혀치기', dmg: 8 }, { nm: '부풀기', block: 6, str: 1 }]) },
+  fox:      { n: '새끼 구미호', g: '狐', hp: [26, 30], ai: cyc([{ nm: '홀리기', vuln: 2, weak: 1 }, { nm: '할퀴기', dmg: 5, hits: 2 }, { nm: '물기', dmg: 9 }]) },
+  jiangshi: { n: '강시', g: '屍', hp: [40, 44], ai: cyc([{ nm: '기 흡수', str: 3 }, { nm: '뻣뻣한 일격', dmg: 10 }, { nm: '뻣뻣한 일격', dmg: 10 }]) },
+  shade:    { n: '어둑시니', g: '暗', hp: [32, 36], ai: () => ({ nm: '짙어지는 어둠', dmg: 5, str: 2 }) },
+  tiger:    { n: '장산범', g: '虎', hp: [72, 78], elite: 1, ai: cyc([{ nm: '연속 할퀴기', dmg: 4, hits: 3 }, { nm: '덮치기', dmg: 14, wound: 2 }, { nm: '으르렁', block: 12, str: 2 }]) },
+  giant:    { n: '그슨대', g: '影', hp: [76, 82], elite: 1, ai: (e, t) => t === 0 ? { nm: '몸집 불리기', ritual: 2 } : t % 3 === 0 ? { nm: '짓누르기', dmg: 12, wound: 1 } : { nm: '그림자 주먹', dmg: 6 } },
+  reaper:   { n: '저승차사', g: '冥', hp: [190, 190], boss: 1, ai: (e, t) => t === 0 ? { nm: '명부 낭독', weak: 2, vuln: 2 } : [{ nm: '사슬 휘두르기', dmg: 7, hits: 3 }, { nm: '저승 문 열기', block: 18, str: 3 }, { nm: '명부 집행', dmg: 22 }, { nm: '혼 거두기', dmg: 12, wound: 2 }][(t - 1) % 4] },
+};
+const ENC = {
+  easy: [['wisp', 'wisp'], ['ghost'], ['toad'], ['fox']],
+  hard: [['wisp', 'wisp', 'wisp'], ['jiangshi'], ['fox', 'wisp'], ['shade', 'toad'], ['ghost', 'wisp'], ['shade']],
+  elite: [['tiger'], ['giant']],
+  boss: [['reaper']],
+};
+
+const RELICS = {
+  gourd:   { n: '붉은 호리병', g: '瓢', d: '전투 승리 후 체력 6 회복' },
+  mirror:  { n: '청동 거울', g: '鏡', d: '전투 시작 시 방어도 10' },
+  knife:   { n: '은장도', g: '刀', d: '전투 시작 시 힘 +1' },
+  pouch:   { n: '복주머니', g: '福', d: '전투 첫 턴에 카드 2장 더 뽑기' },
+  fang:    { n: '독사 이빨', g: '牙', d: '전투 시작 시 모든 적에게 독 3' },
+  feather: { n: '삼족오 깃털', g: '烏', d: '얻을 때 최대 체력 +10', get: () => { G.p.max += 10; G.p.hp += 10; } },
+  haetae:  { n: '해태 석상', g: '獬', d: '턴 종료 시 방어도가 없으면 방어도 6' },
+  pillow:  { n: '목침', g: '枕', d: '휴식할 때 체력 15 추가 회복' },
+  coin:    { n: '엽전 꾸러미', g: '錢', d: '얻을 때 엽전 120', get: () => { G.p.gold += 120; } },
+  lantern: { n: '청사초롱', g: '燈', d: '전투 첫 턴 에너지 +1' },
+};
+const has = id => G.relics.includes(id);
+
+const NODE = {
+  fight: { g: '戰', n: '전투' }, elite: { g: '鬼', n: '정예' }, rest: { g: '休', n: '휴식' },
+  shop: { g: '商', n: '상점' }, event: { g: '異', n: '기이한 일' }, chest: { g: '寶', n: '보물' }, boss: { g: '冥', n: '저승차사' },
+};
+
+/* ---------- run setup ---------- */
+function mk(id, up = false) { return { u: G.uid++, id, up }; }
+function newRun() {
+  G = {
+    uid: 1, screen: 'map',
+    p: { hp: 72, max: 72, gold: 99, block: 0, st: {}, pw: {} },
+    deck: [], relics: [], map: genMap(), pos: { r: -1, c: -1 }, path: [],
+    combat: null, reward: null, shop: null, event: null, stats: { kills: 0, cards: 0 },
+  };
+  for (let i = 0; i < 5; i++) G.deck.push(mk('strike'));
+  for (let i = 0; i < 4; i++) G.deck.push(mk('defend'));
+  G.deck.push(mk('ward'));
+  gainRelic('gourd');
+  render();
+}
+function rollType(r) {
+  if (r === 0) return 'fight';
+  if (r === 5) return 'chest';
+  if (r === 11) return 'rest';
+  const w = [['fight', 45], ['event', 22], ['shop', 9]];
+  if (r >= 4) w.push(['elite', 12], ['rest', 12]);
+  let x = Math.random() * w.reduce((s, a) => s + a[1], 0);
+  for (const [t, n] of w) { if ((x -= n) < 0) return t; }
+  return 'fight';
+}
+function genMap() {
+  const rows = [];
+  for (let r = 0; r < 13; r++) {
+    const row = [null, null, null];
+    if (r === 12) { row[1] = { t: 'boss', dx: 0 }; rows.push(row); continue; }
+    const cols = [0, 1, 2];
+    if (r > 0 && r !== 5 && r !== 11 && Math.random() < .45) cols.splice(rnd(3), 1);
+    cols.forEach(c => { row[c] = { t: rollType(r), dx: (Math.random() - .5) * 9 }; });
+    rows.push(row);
+  }
+  return rows;
+}
+function avail() {
+  const { r, c } = G.pos, nr = r + 1;
+  if (nr >= G.map.length) return [];
+  return G.map[nr].map((n, cc) => (n && (r < 0 || Math.abs(cc - c) <= 1)) ? cc : -1).filter(x => x >= 0);
+}
+function gainRelic(id) { if (!id || has(id)) return; G.relics.push(id); RELICS[id].get?.(); }
+function randomRelic() { const pool = Object.keys(RELICS).filter(k => k !== 'gourd' && !has(k)); return pool.length ? pick(pool) : null; }
+function rollRarity(rare) { const x = Math.random(); return x < rare ? 'r' : x < rare + .35 ? 'u' : 'c'; }
+function cardChoices(n, kind) {
+  const out = [];
+  let guard = 0;
+  while (out.length < n && guard++ < 100) {
+    const rar = kind === 'rare' ? 'r' : rollRarity(kind === 'elite' ? .2 : .07);
+    const id = pick(Object.keys(CARDS).filter(k => CARDS[k].r === rar));
+    if (!out.some(c => c.id === id)) out.push(mk(id));
+  }
+  return out;
+}
+
+/* ---------- combat core ---------- */
+const alive = () => G.combat.en.filter(e => e.hp > 0);
+const eid = t => t === G.p ? 'pl' : t.u;
+function fx(t, txt, cls) { if (G.combat) G.combat.fx.push({ id: eid(t), txt, cls }); }
+function calc(src, tgt, base, sm = 1) {
+  let d = base + (src.st.str || 0) * sm;
+  if (src.st.weak) d *= .75;
+  if (tgt.st.vuln) d *= 1.5;
+  return Math.max(0, Math.floor(d));
+}
+function dmgTo(t, amt) {
+  const b = Math.min(t.block, amt);
+  t.block -= b;
+  const un = amt - b;
+  t.hp -= un;
+  fx(t, un > 0 ? `-${un}` : '막음', un > 0 ? 'dmg' : 'blk');
+  if (t !== G.p && t.hp <= 0 && !t.dead) { t.dead = true; G.stats.kills++; }
+  return un;
+}
+function hit(T, base, sm = 1) { if (!T || T.hp <= 0) return 0; return dmgTo(T, calc(G.p, T, base, sm)); }
+function hitAll(base) { return alive().reduce((s, e) => s + hit(e, base), 0); }
+function guard(n) { const v = Math.max(0, n + (G.p.st.dex || 0)); G.p.block += v; fx(G.p, `+${v}`, 'blk'); }
+function heal(n) { if (n <= 0) return; const v = Math.min(n, G.p.max - G.p.hp); G.p.hp += v; if (v > 0) fx(G.p, `+${v}`, 'heal'); }
+function buff(t, k, n) { t.st[k] = (t.st[k] || 0) + n; fx(t, `${ST[k][0]} +${n}`, 'buff'); }
+function debuff(t, k, n) { if (!t || t.hp <= 0) return; t.st[k] = (t.st[k] || 0) + n; fx(t, `${ST[k][0]} ${n}`, 'debuff'); }
+function power(k, n) { G.p.pw[k] = (G.p.pw[k] || 0) + n; fx(G.p, PW[k], 'buff'); }
+function dec(t, k) { if (t.st[k]) { t.st[k]--; if (!t.st[k]) delete t.st[k]; } }
+function draw(n) {
+  const c = G.combat;
+  for (let i = 0; i < n; i++) {
+    if (!c.draw.length) { if (!c.disc.length) break; c.draw = shuffle(c.disc); c.disc = []; }
+    if (c.hand.length >= 10) break;
+    c.hand.push(c.draw.pop());
+  }
+}
+function rollIntent(e) { e.mv = ENEMIES[e.id].ai(e, e.turn, G); e.turn++; }
+
+function startCombat(ids, kind) {
+  const en = ids.map(id => { const d = ENEMIES[id]; const hp = d.hp[0] + rnd(d.hp[1] - d.hp[0] + 1); return { u: G.uid++, id, hp, max: hp, block: 0, st: {}, turn: 0, mv: null }; });
+  const p = G.p;
+  p.block = 0; p.st = {}; p.pw = {};
+  G.combat = { kind, en, draw: shuffle(G.deck.map(c => ({ ...c }))), hand: [], disc: [], exh: [], energy: 0, maxE: 3, turn: 0, sel: -1, busy: false, act: null, fx: [] };
+  G.screen = 'combat';
+  if (has('knife')) buff(p, 'str', 1);
+  if (has('fang')) en.forEach(e => debuff(e, 'poison', 3));
+  en.forEach(rollIntent);
+  startTurn();
+  if (has('mirror')) guard(10 - (p.st.dex || 0));
+  render();
+}
+function startTurn() {
+  const c = G.combat, p = G.p;
+  c.turn++;
+  if (!p.pw.barricade) p.block = 0;
+  c.energy = c.maxE + (p.pw.club || 0) + (c.turn === 1 && has('lantern') ? 1 : 0);
+  if (p.st.poison) { p.hp -= p.st.poison; fx(p, `-${p.st.poison}`, 'dmg'); dec(p, 'poison'); if (p.hp <= 0) return die(); }
+  if (p.pw.fumes) alive().forEach(e => debuff(e, 'poison', p.pw.fumes));
+  draw(5 + (c.turn === 1 && has('pouch') ? 2 : 0));
+  if (!alive().length) { c.busy = true; render(); setTimeout(win, 600); return; }
+  render();
+}
+function play(i, targetU) {
+  const c = G.combat;
+  if (!c || c.busy) return;
+  const card = c.hand[i];
+  if (!card) return;
+  const d = CARDS[card.id], cost = costOf(card);
+  if (cost == null) return toast('이 카드는 사용할 수 없습니다.');
+  if (cost > c.energy) return toast('에너지가 부족합니다.');
+  let T = null;
+  if (d.tg) {
+    const al = alive();
+    if (targetU != null) T = al.find(e => e.u === targetU);
+    else if (al.length === 1) T = al[0];
+    if (!T) { c.sel = c.sel === i ? -1 : i; return render(); }
+  }
+  c.sel = -1;
+  c.energy -= cost;
+  c.hand.splice(i, 1);
+  d.p(T, card.up, card);
+  if (d.t !== 'pow') (exOf(card) ? c.exh : c.disc).push(card);
+  G.stats.cards++;
+  if (G.p.hp <= 0) return die();
+  if (!alive().length) { c.busy = true; render(); setTimeout(win, 650); return; }
+  render();
+}
+async function endTurn() {
+  const c = G.combat, p = G.p;
+  if (!c || c.busy) return;
+  c.busy = true; c.sel = -1;
+  if (p.pw.armor) { p.block += p.pw.armor; fx(p, `+${p.pw.armor}`, 'blk'); }
+  if (has('haetae') && p.block === 0) { p.block += 6; fx(p, '+6', 'blk'); }
+  c.disc.push(...c.hand); c.hand = [];
+  dec(p, 'weak'); dec(p, 'vuln');
+  render();
+  await sleep(380);
+  for (const e of alive()) {
+    if (G.combat !== c) return;
+    c.act = e.u;
+    e.block = 0;
+    if (e.st.poison) {
+      e.hp -= e.st.poison; fx(e, `-${e.st.poison}`, 'dmg'); dec(e, 'poison');
+      if (e.hp <= 0) { if (!e.dead) { e.dead = true; G.stats.kills++; } render(); await sleep(350); continue; }
+    }
+    if (e.st.ritual) { if (e.fresh) e.fresh = false; else buff(e, 'str', e.st.ritual); }
+    doMove(e);
+    render();
+    await sleep(520);
+    if (p.hp <= 0) return die();
+    dec(e, 'weak'); dec(e, 'vuln');
+  }
+  c.act = null;
+  if (!alive().length) return win();
+  alive().forEach(rollIntent);
+  c.busy = false;
+  startTurn();
+}
+function doMove(e) {
+  const m = e.mv, p = G.p, c = G.combat;
+  if (m.block) { e.block += m.block; fx(e, `+${m.block}`, 'blk'); }
+  if (m.dmg) for (let h = 0; h < (m.hits || 1); h++) { dmgTo(p, calc(e, p, m.dmg)); if (p.hp <= 0) return; }
+  if (m.str) buff(e, 'str', m.str);
+  if (m.ritual) { e.st.ritual = (e.st.ritual || 0) + m.ritual; e.fresh = true; fx(e, '의식', 'buff'); }
+  if (m.weak) debuff(p, 'weak', m.weak);
+  if (m.vuln) debuff(p, 'vuln', m.vuln);
+  if (m.poison) debuff(p, 'poison', m.poison);
+  if (m.wound) { for (let i = 0; i < m.wound; i++) c.disc.push(mk('wound')); fx(p, `상처 +${m.wound}`, 'debuff'); }
+}
+function win() {
+  const c = G.combat;
+  if (!c) return;
+  if (has('gourd')) G.p.hp = Math.min(G.p.max, G.p.hp + 6);
+  G.p.block = 0; G.p.st = {}; G.p.pw = {};
+  G.combat = null;
+  if (c.kind === 'boss') { G.screen = 'victory'; return render(); }
+  const elite = c.kind === 'elite';
+  G.reward = {
+    gold: elite ? 25 + rnd(11) : 10 + rnd(11), goldTaken: false,
+    cards: cardChoices(3, elite ? 'elite' : 'fight'), cardTaken: false,
+    relic: elite ? randomRelic() : null, relicTaken: false,
+  };
+  G.screen = 'reward';
+  render();
+}
+function die() { G.combat = null; G.screen = 'over'; render(); }
+
+/* ---------- map + nodes ---------- */
+function go(c) {
+  if (!avail().includes(c)) return;
+  G.pos = { r: G.pos.r + 1, c };
+  G.path.push([G.pos.r, c]);
+  const t = G.map[G.pos.r][c].t, r = G.pos.r;
+  if (t === 'fight') startCombat(pick(r < 3 ? ENC.easy : ENC.hard), 'fight');
+  else if (t === 'elite') startCombat(pick(ENC.elite), 'elite');
+  else if (t === 'boss') startCombat(pick(ENC.boss), 'boss');
+  else if (t === 'rest') { G.screen = 'rest'; render(); }
+  else if (t === 'shop') { genShop(); G.screen = 'shop'; render(); }
+  else if (t === 'chest') { G.event = { id: 'chest', relic: randomRelic(), done: null }; G.screen = 'chest'; render(); }
+  else if (t === 'event') {
+    if (Math.random() < .2) return startCombat(pick(r < 3 ? ENC.easy : ENC.hard), 'fight');
+    G.event = { id: pick(Object.keys(EVENTS)), done: null };
+    G.screen = 'event'; render();
+  }
+}
+function toMap() { G.reward = null; G.shop = null; G.event = null; G.screen = 'map'; render(); }
+function genShop() {
+  const price = { c: 50, u: 75, r: 150 };
+  const cards = [...cardChoices(3, 'fight'), ...cardChoices(2, 'elite')].map(c => ({ c, price: price[CARDS[c.id].r] + rnd(11) - 5, sold: false }));
+  const relics = [];
+  for (let i = 0; i < 2; i++) { const id = randomRelic(); if (id && !relics.some(x => x.id === id)) relics.push({ id, price: 140 + rnd(41), sold: false }); }
+  G.shop = { cards, relics, removed: false, removePrice: 75 };
+}
+
+/* ---------- events ---------- */
+const EVENTS = {
+  jangseung: {
+    t: '갈림길의 장승', g: '將',
+    txt: '두 장승이 길을 막고 섰다. 천하대장군의 눈이 피처럼 붉다. 피를 바치면 귀한 부적을 내어 주겠다고 한다.',
+    opts: [
+      { l: '피를 바친다', s: '체력 -8, 희귀 카드 3장 중 1장', f: () => { G.p.hp = Math.max(1, G.p.hp - 8); openPicker('희귀 부적 고르기', cardChoices(3, 'rare'), card => { G.deck.push(card); done(`${CARDS[card.id].n}을(를) 얻었다. 장승이 길을 비켜섰다.`); }, false); } },
+      { l: '절하고 지나간다', s: '아무 일도 없음', f: () => done('장승은 말없이 당신을 지나보냈다.') },
+    ],
+  },
+  mudang: {
+    t: '떠돌이 무당', g: '巫',
+    txt: '방울 소리와 함께 무당이 나타났다. "업을 씻어 주랴, 복을 빌어 주랴?"',
+    opts: [
+      { l: '업을 씻는다', s: '엽전 50, 카드 1장 제거', ok: () => G.p.gold >= 50 && G.deck.length > 1, f: () => openPicker('제거할 카드', G.deck, card => { G.p.gold -= 50; G.deck = G.deck.filter(c => c !== card); done(`${CARDS[card.id].n}이(가) 불길 속에 타 사라졌다.`); }, true) },
+      { l: '복을 빈다', s: '무작위 카드 2장 강화', f: () => { const cs = shuffle(G.deck.filter(canUp)).slice(0, 2); cs.forEach(c => { c.up = true; }); done(cs.length ? `${cs.map(c => CARDS[c.id].n).join(', ')}이(가) 강화되었다.` : '강화할 카드가 없었다.'); } },
+      { l: '떠난다', s: '', f: () => done('방울 소리가 멀어졌다.') },
+    ],
+  },
+  shrine: {
+    t: '버려진 사당', g: '祠',
+    txt: '무너진 사당의 제단 위에서 무언가 빛난다. 손을 뻗자 차가운 기운이 팔을 타고 오른다.',
+    opts: [
+      { l: '제물을 챙긴다', s: '유물 획득, 덱에 상처 1장', f: () => { const id = randomRelic(); gainRelic(id); G.deck.push(mk('wound')); done(id ? `${RELICS[id].n}을(를) 얻었다. 팔에 지워지지 않는 상처가 남았다.` : '제단은 비어 있었다. 상처만 남았다.'); } },
+      { l: '기도하고 쉰다', s: '체력 12 회복', f: () => { G.p.hp = Math.min(G.p.max, G.p.hp + 12); done('향 냄새 속에서 잠시 숨을 돌렸다.'); } },
+    ],
+  },
+  well: {
+    t: '달빛 우물', g: '井',
+    txt: '우물물에 달이 둘 비친다. 하나는 진짜 달이 아니다.',
+    opts: [
+      { l: '물을 마신다', s: '최대 체력 +5, 체력 5 회복', f: () => { G.p.max += 5; G.p.hp += 5; done('물이 달다. 몸에 힘이 돈다.'); } },
+      { l: '엽전을 던진다', s: '엽전 30, 절반 확률로 엽전 100', ok: () => G.p.gold >= 30, f: () => { G.p.gold -= 30; if (Math.random() < .5) { G.p.gold += 100; done('가짜 달이 깨지며 엽전이 쏟아져 나왔다.'); } else done('엽전이 소리 없이 가라앉았다.'); } },
+    ],
+  },
+};
+function done(msg) { G.event.done = msg; render(); }
+
+/* ---------- picker / modal ---------- */
+function openPicker(title, cards, cb, cancelable) {
+  pickCb = { cards, cb };
+  const m = document.getElementById('modal');
+  m.innerHTML = `<div class="inner"><div class="top"><h3>${title}</h3>${cancelable ? '<button class="btn ghost" onclick="A.closeModal()">취소</button>' : ''}</div>
+    <div class="pick">${cards.map((c, i) => cardHTML(c, { on: `A.pick(${i})` })).join('')}</div></div>`;
+  m.hidden = false;
+}
+function viewCards(title, cards) {
+  pickCb = null;
+  const m = document.getElementById('modal');
+  m.innerHTML = `<div class="inner"><div class="top"><h3>${title} <small class="num" style="font-size:20px;color:var(--muted)">${cards.length}장</small></h3><button class="btn ghost" onclick="A.closeModal()">닫기</button></div>
+    <div class="pick">${cards.length ? cards.map(c => cardHTML(c, {})).join('') : '<p style="color:var(--muted)">카드가 없습니다.</p>'}</div></div>`;
+  m.hidden = false;
+}
+function closeModal() { const m = document.getElementById('modal'); m.hidden = true; m.innerHTML = ''; }
+let toastT = 0;
+function toast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.hidden = false;
+  clearTimeout(toastT); toastT = setTimeout(() => { t.hidden = true; }, 1800);
+}
+
+/* ---------- rendering ---------- */
+function cardHTML(card, o) {
+  const d = CARDS[card.id], cost = costOf(card);
+  return `<button class="card t-${d.t} ${card.up ? 'up' : ''} ${o.cls || ''}" ${o.on ? `onclick="${o.on}"` : 'tabindex="-1"'} aria-label="${d.n}${card.up ? '+' : ''}">
+    ${cost == null ? '' : `<span class="cost num">${cost}</span>`}
+    <span class="cname">${d.n}</span>
+    <span class="glyph">${d.g}</span>
+    <span class="cdesc">${d.d(card.up)}</span>
+    <span class="ctype">${TYPE[d.t]}</span></button>`;
+}
+function statusHTML(t) {
+  const chips = Object.entries(t.st).filter(([k, v]) => v && ST[k]).map(([k, v]) => `<span class="chip ${ST[k][1]}" title="${ST[k][2]}">${ST[k][0]} ${v}</span>`);
+  if (t.pw) Object.entries(t.pw).forEach(([k, v]) => chips.push(`<span class="chip pw">${PW[k]}${k === 'barricade' ? '' : ' ' + v}</span>`));
+  return `<div class="sts">${chips.join('')}</div>`;
+}
+function hpbar(t) {
+  const pct = Math.max(0, t.hp) / t.max * 100;
+  return `<div class="hpbar"><i style="width:${pct}%"></i><span class="num">${Math.max(0, t.hp)}/${t.max}</span>${t.block ? `<em class="num">${t.block}</em>` : ''}</div>`;
+}
+function intentHTML(e) {
+  const m = e.mv;
+  if (!m) return '<div class="intent"></div>';
+  const parts = [];
+  if (m.dmg) parts.push(`<span class="i-atk num">攻 ${calc(e, G.p, m.dmg)}${m.hits > 1 ? '×' + m.hits : ''}</span>`);
+  if (m.block) parts.push(`<span class="i-def num">守 ${m.block}</span>`);
+  if (m.str || m.ritual) parts.push('<span class="i-buf">強</span>');
+  if (m.weak || m.vuln || m.poison || m.wound) parts.push('<span class="i-deb">呪</span>');
+  return `<div class="intent">${parts.join('')}<small>${m.nm}</small></div>`;
+}
+function topbar() {
+  const p = G.p;
+  return `<header class="bar">
+    <div class="stat hp"><b>체력</b><span class="num">${Math.max(0, p.hp)}/${p.max}</span></div>
+    <div class="stat gold"><b>엽전</b><span class="num">${p.gold}</span></div>
+    <div class="stat"><b>층</b><span class="num">${Math.max(0, G.pos.r + 1)}/13</span></div>
+    <div class="relics">${G.relics.map(r => `<button class="relic" title="${RELICS[r].n}: ${RELICS[r].d}" aria-label="${RELICS[r].n}" onclick="A.relic('${r}')">${RELICS[r].g}</button>`).join('')}</div>
+    <button class="btn ghost small" onclick="A.viewDeck()">덱 <span class="num">${G.deck.length}</span></button>
+  </header>`;
+}
+
+function scTitle() {
+  const s = loadSave();
+  const canCont = s && !['over', 'victory'].includes(s.screen);
+  const demo = [{ id: 'stab', up: false }, { id: 'thunder', up: false }, { id: 'wall', up: true }];
+  return `<main class="title">
+    <h1>저승<span>길</span></h1>
+    <p class="sub">길 잃은 퇴마사가 되어 부적을 모으고, 열세 굽이 저승길 끝의 저승차사를 물리치세요.</p>
+    <div class="fan">${demo.map(c => cardHTML(c, {})).join('')}</div>
+    <div class="actions">
+      <button class="btn red" onclick="A.newRun()">새 여정</button>
+      ${canCont ? '<button class="btn" onclick="A.cont()">이어하기</button>' : ''}
+    </div>
+    <dl class="how">
+      <dt>전투</dt><dd>매 턴 에너지 3과 부적 5장을 받습니다. 카드를 쓰고 턴을 넘기면 적이 머리 위에 예고한 행동을 합니다. 攻은 공격, 守는 방어, 強은 강화, 呪는 저주입니다.</dd>
+      <dt>방어도</dt><dd>받는 피해를 먼저 막고, 다음 턴이 시작될 때 사라집니다.</dd>
+      <dt>덱 쌓기</dt><dd>이길 때마다 새 부적을 고르고, 휴식처에서 강화하고, 상점에서 약한 카드를 태워 없애세요.</dd>
+    </dl>
+  </main>`;
+}
+function scMap() {
+  const av = avail(), RH = 66, N = G.map.length, H = N * RH;
+  const doneSet = new Set(G.path.map(([r, c]) => `${r},${c}`));
+  const xy = (r, c) => [(c + .5) / 3 * 100 + G.map[r][c].dx, (N - 1 - r) * RH + RH / 2];
+  let lines = '', nodes = '';
+  G.map.forEach((row, r) => row.forEach((n, c) => {
+    if (!n) return;
+    const [x, y] = xy(r, c);
+    if (r + 1 < N) G.map[r + 1].forEach((m, cc) => {
+      if (!m || Math.abs(cc - c) > 1) return;
+      const [x2, y2] = xy(r + 1, cc);
+      const isDone = doneSet.has(`${r},${c}`) && doneSet.has(`${r + 1},${cc}`);
+      const isOn = G.pos.r === r && G.pos.c === c && av.includes(cc);
+      lines += `<line x1="${x}" y1="${y}" x2="${x2}" y2="${y2}" class="${isDone ? 'done' : isOn ? 'on' : ''}"/>`;
+    });
+    const isAv = r === G.pos.r + 1 && av.includes(c);
+    const st = isAv ? 'av' : doneSet.has(`${r},${c}`) ? 'done' : '';
+    const here = G.pos.r === r && G.pos.c === c ? 'here' : '';
+    nodes += `<button class="node t-${n.t} ${st} ${here}" style="left:${x}%;top:${y}px" title="${NODE[n.t].n}" aria-label="${r + 1}층 ${NODE[n.t].n}" ${isAv ? `onclick="A.go(${c})"` : 'disabled'}>${NODE[n.t].g}</button>`;
+  }));
+  return `<main>
+    <div class="scene-head"><h2>저승길</h2>
+      <div class="legend">${Object.values(NODE).map(v => `<span><b>${v.g}</b>${v.n}</span>`).join('')}</div></div>
+    <div class="mapwrap" id="mapwrap"><div class="map" style="height:${H}px">
+      <svg viewBox="0 0 100 ${H}" preserveAspectRatio="none" aria-hidden="true">${lines}</svg>${nodes}
+    </div></div>
+  </main>`;
+}
+function scCombat() {
+  const c = G.combat, p = G.p, tgt = c.sel >= 0;
+  const foes = c.en.filter(e => e.hp > 0).map(e => {
+    const d = ENEMIES[e.id];
+    return `<div class="ent foe ${tgt ? 'targetable' : ''} ${c.act === e.u ? 'acting' : ''} ${d.elite || d.boss ? 'big' : ''} ${e.block ? 'blocked' : ''}" data-eid="${e.u}" onclick="A.target(${e.u})">
+      ${intentHTML(e)}<div class="seal">${d.g}</div><div class="ename">${d.n}</div>${hpbar(e)}${statusHTML(e)}</div>`;
+  }).join('');
+  const me = `<div class="ent me ${p.block ? 'blocked' : ''}" data-eid="pl"><div class="intent"></div><div class="seal me-seal">我</div><div class="ename">퇴마사</div>${hpbar(p)}${statusHTML(p)}</div>`;
+  const hand = c.hand.map((cd, i) => { const k = costOf(cd); return cardHTML(cd, { cls: `${i === c.sel ? 'sel' : ''} ${k == null || k > c.energy ? 'off' : ''}`, on: `A.play(${i})` }); }).join('');
+  return `<main class="combat">
+    <div class="arena"><div class="mine">${me}</div><div class="foes">${foes}</div></div>
+    <div class="hint">${tgt ? '대상을 고르세요' : ''}</div>
+    <div class="hud">
+      <div class="energy" title="에너지"><span class="num">${c.energy}</span><small class="num">/${c.maxE}</small></div>
+      <button class="pile" onclick="A.pile('draw')">뽑을 더미 <b class="num">${c.draw.length}</b></button>
+      <button class="pile" onclick="A.pile('disc')">버린 더미 <b class="num">${c.disc.length}</b></button>
+      ${c.exh.length ? `<button class="pile" onclick="A.pile('exh')">소멸 <b class="num">${c.exh.length}</b></button>` : ''}
+      <button class="btn red end" onclick="A.endTurn()" ${c.busy ? 'disabled' : ''}>${c.busy ? '적의 차례' : '턴 종료'}</button>
+    </div>
+    <div class="hand">${hand || '<p class="empty">손에 든 부적이 없습니다</p>'}</div>
+  </main>`;
+}
+function scReward() {
+  const w = G.reward;
+  return `<main class="panel">
+    <h2>승리</h2>
+    <p class="lead">쓰러진 원귀가 남긴 것을 챙기세요.</p>
+    <div class="list">
+      <button class="row" onclick="A.takeGold()" ${w.goldTaken ? 'disabled' : ''}><span class="ic">錢</span><span class="tx">엽전 <span class="num">${w.gold}</span><small>${w.goldTaken ? '챙김' : '눌러서 받기'}</small></span></button>
+      ${w.relic ? `<button class="row" onclick="A.takeRelic()" ${w.relicTaken ? 'disabled' : ''}><span class="ic">${RELICS[w.relic].g}</span><span class="tx">${RELICS[w.relic].n}<small>${RELICS[w.relic].d}</small></span></button>` : ''}
+    </div>
+    ${w.cardTaken ? '' : `<h3 style="font-size:16px">부적 한 장을 덱에 넣으세요</h3>
+      <div class="pick" style="padding-block:4px 12px">${w.cards.map((c, i) => cardHTML(c, { on: `A.takeCard(${i})` })).join('')}</div>`}
+    <div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap">
+      ${w.cardTaken ? '' : '<button class="btn ghost" onclick="A.skipCard()">카드 건너뛰기</button>'}
+      <button class="btn" onclick="A.leaveReward()">길을 계속 간다</button>
+    </div>
+  </main>`;
+}
+function scRest() {
+  const amt = Math.floor(G.p.max * .3) + (has('pillow') ? 15 : 0);
+  const ups = G.deck.filter(canUp).length;
+  return `<main class="panel">
+    <h2>주막</h2>
+    <p class="lead">등불 아래 잠시 머물 수 있습니다. 한 가지만 고르세요.</p>
+    <div class="choices">
+      <button class="choice" onclick="A.rest()"><span class="ic">休</span><b>쉬기</b><small>체력 <span class="num">${amt}</span> 회복</small></button>
+      <button class="choice" onclick="A.smith()" ${ups ? '' : 'disabled'}><span class="ic">鍛</span><b>부적 다듬기</b><small>카드 1장 강화 (강화 가능 ${ups}장)</small></button>
+    </div>
+  </main>`;
+}
+function scShop() {
+  const s = G.shop, g = G.p.gold;
+  return `<main class="panel" style="max-width:760px">
+    <h2>도깨비 장터</h2>
+    <p class="lead">"엽전만 있으면 뭐든 팔지." 도깨비가 방망이로 좌판을 두드린다.</p>
+    <div class="pick">${s.cards.map((x, i) => `<div class="${x.sold ? 'sold' : ''}">${cardHTML(x.c, { on: `A.buyCard(${i})` })}<span class="price-tag num ${x.price > g ? 'no' : ''}">${x.sold ? '팔림' : x.price + ' 엽전'}</span></div>`).join('')}</div>
+    <div class="list">
+      ${s.relics.map((x, i) => `<button class="row" onclick="A.buyRelic(${i})" ${x.sold || x.price > g ? 'disabled' : ''}><span class="ic">${RELICS[x.id].g}</span><span class="tx">${RELICS[x.id].n}<small>${RELICS[x.id].d}</small></span><span class="price num">${x.sold ? '팔림' : x.price}</span></button>`).join('')}
+      <button class="row" onclick="A.remove()" ${s.removed || s.removePrice > g || G.deck.length <= 1 ? 'disabled' : ''}><span class="ic">焚</span><span class="tx">부적 태우기<small>덱에서 카드 1장 제거${s.removed ? ' (이용함)' : ''}</small></span><span class="price num">${s.removePrice}</span></button>
+    </div>
+    <div style="display:flex;justify-content:flex-end"><button class="btn" onclick="A.toMap()">장터를 떠난다</button></div>
+  </main>`;
+}
+function scEvent() {
+  const ev = G.event;
+  if (ev.id === 'chest') {
+    return `<main class="panel endcard">
+      <div class="event-glyph">寶</div><h2>녹슨 궤짝</h2>
+      ${ev.done ? `<p class="lead">${ev.done}</p><button class="btn" onclick="A.toMap()">길을 계속 간다</button>`
+        : `<p class="lead">길가에 반쯤 묻힌 궤짝이 있다.</p><button class="btn red" onclick="A.openChest()">연다</button>`}
+    </main>`;
+  }
+  const E = EVENTS[ev.id];
+  return `<main class="panel">
+    <div class="event-glyph">${E.g}</div><h2>${E.t}</h2>
+    <p class="lead">${ev.done || E.txt}</p>
+    ${ev.done ? '<div><button class="btn" onclick="A.toMap()">길을 계속 간다</button></div>'
+      : `<div class="list">${E.opts.map((o, i) => `<button class="row" onclick="A.opt(${i})" ${o.ok && !o.ok() ? 'disabled' : ''}><span class="tx"><b>${o.l}</b>${o.s ? `<small>${o.s}</small>` : ''}</span></button>`).join('')}</div>`}
+  </main>`;
+}
+function scEnd(won) {
+  return `<main class="panel endcard">
+    <div class="event-glyph">${won ? '勝' : '亡'}</div>
+    <h2>${won ? '저승차사를 물리쳤다' : '혼이 흩어졌다'}</h2>
+    <p class="lead">${won ? '명부에서 당신의 이름이 지워졌습니다. 이승으로 돌아가는 길이 열립니다.' : `${Math.max(1, G.pos.r + 1)}층에서 여정이 끝났습니다. 다음 혼은 더 멀리 갈 수 있을 겁니다.`}</p>
+    <div class="tally">
+      <span><b class="num">${G.pos.r + 1}</b>도달한 층</span>
+      <span><b class="num">${G.stats.kills}</b>물리친 원귀</span>
+      <span><b class="num">${G.stats.cards}</b>쓴 부적</span>
+      <span><b class="num">${G.deck.length}</b>덱 크기</span>
+    </div>
+    <button class="btn red" onclick="A.newRun()">새 여정</button>
+  </main>`;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  if (!G || G.screen === 'title') { app.innerHTML = scTitle(); return; }
+  const s = G.screen;
+  const body = s === 'map' ? scMap() : s === 'combat' ? scCombat() : s === 'reward' ? scReward() : s === 'rest' ? scRest()
+    : s === 'shop' ? scShop() : (s === 'event' || s === 'chest') ? scEvent() : s === 'victory' ? scEnd(true) : scEnd(false);
+  app.innerHTML = topbar() + body;
+  if (s === 'map') {
+    const w = document.getElementById('mapwrap');
+    const y = (G.map.length - 1 - (G.pos.r + 1)) * 66;
+    w.scrollTop = Math.max(0, y - w.clientHeight / 2 + 33);
+  }
+  flushFx();
+  save();
+}
+function flushFx() {
+  const c = G.combat;
+  if (!c || !c.fx.length) return;
+  const layer = document.getElementById('fxl');
+  const count = {};
+  for (const f of c.fx) {
+    const el = document.querySelector(`[data-eid="${f.id}"]`);
+    if (!el) continue;
+    const r = el.querySelector('.seal').getBoundingClientRect();
+    const n = count[f.id] = (count[f.id] || 0) + 1;
+    const s = document.createElement('span');
+    s.className = `float ${f.cls}`;
+    s.textContent = f.txt;
+    s.style.left = `${r.left + r.width / 2 + (n % 2 ? -1 : 1) * (n - 1) * 10}px`;
+    s.style.top = `${r.top + r.height * .2 - (n - 1) * 20}px`;
+    layer.appendChild(s);
+    setTimeout(() => s.remove(), 950);
+    if (f.cls === 'dmg') el.classList.add('hit');
+  }
+  c.fx = [];
+}
+function save() { try { if (G) localStorage.setItem(SAVE_KEY, JSON.stringify(G)); } catch (e) { /* storage unavailable */ } }
+function loadSave() { try { const s = localStorage.getItem(SAVE_KEY); return s ? JSON.parse(s) : null; } catch (e) { return null; } }
+
+/* ---------- actions ---------- */
+const A = {
+  newRun() { closeModal(); newRun(); },
+  cont() { const s = loadSave(); if (!s) return; G = s; if (G.combat) { G.combat.busy = false; G.combat.act = null; G.combat.fx = []; } render(); },
+  go, toMap, endTurn,
+  play(i) { const c = G.combat; if (c.sel >= 0 && c.sel !== i && !CARDS[c.hand[i].id].tg) c.sel = -1; play(i); },
+  target(u) { const c = G.combat; if (c && c.sel >= 0) play(c.sel, u); },
+  pile(k) { const c = G.combat; const names = { draw: '뽑을 더미', disc: '버린 더미', exh: '소멸한 카드' }; const cards = k === 'draw' ? [...c.draw].sort((a, b) => a.id.localeCompare(b.id)) : c[k]; viewCards(names[k], cards); },
+  viewDeck() { viewCards('나의 덱', G.deck); },
+  relic(id) { toast(`${RELICS[id].n}: ${RELICS[id].d}`); },
+  closeModal() { closeModal(); },
+  pick(i) { if (!pickCb) return; const { cards, cb } = pickCb; pickCb = null; closeModal(); cb(cards[i]); },
+  takeGold() { const w = G.reward; if (w.goldTaken) return; G.p.gold += w.gold; w.goldTaken = true; render(); },
+  takeRelic() { const w = G.reward; if (w.relicTaken) return; gainRelic(w.relic); w.relicTaken = true; render(); },
+  takeCard(i) { const w = G.reward; if (w.cardTaken) return; G.deck.push(w.cards[i]); w.cardTaken = true; toast(`${CARDS[w.cards[i].id].n}을(를) 덱에 넣었습니다.`); render(); },
+  skipCard() { G.reward.cardTaken = true; render(); },
+  leaveReward() { const w = G.reward; if (!w.goldTaken) G.p.gold += w.gold; if (w.relic && !w.relicTaken) gainRelic(w.relic); toMap(); },
+  rest() { const amt = Math.floor(G.p.max * .3) + (has('pillow') ? 15 : 0); G.p.hp = Math.min(G.p.max, G.p.hp + amt); toast(`체력을 ${amt} 회복했습니다.`); toMap(); },
+  smith() { openPicker('강화할 부적', G.deck.filter(canUp), card => { card.up = true; toast(`${CARDS[card.id].n}+ 로 강화했습니다.`); toMap(); }, true); },
+  buyCard(i) { const x = G.shop.cards[i]; if (x.sold) return; if (x.price > G.p.gold) return toast('엽전이 모자랍니다.'); G.p.gold -= x.price; x.sold = true; G.deck.push(x.c); render(); },
+  buyRelic(i) { const x = G.shop.relics[i]; if (x.sold || x.price > G.p.gold) return; G.p.gold -= x.price; x.sold = true; gainRelic(x.id); render(); },
+  remove() { const s = G.shop; if (s.removed || s.removePrice > G.p.gold) return; openPicker('태울 부적', G.deck, card => { G.p.gold -= s.removePrice; s.removed = true; G.deck = G.deck.filter(c => c !== card); toast(`${CARDS[card.id].n}을(를) 태웠습니다.`); render(); }, true); },
+  opt(i) { const o = EVENTS[G.event.id].opts[i]; if (o.ok && !o.ok()) return; o.f(); },
+  openChest() { const id = G.event.relic; if (id) { gainRelic(id); G.event.done = `${RELICS[id].n}: ${RELICS[id].d}`; } else { G.p.gold += 75; G.event.done = '엽전 75닢이 들어 있었다.'; } render(); },
+};
+window.A = A;
+document.addEventListener('keydown', e => {
+  if (!G || G.screen !== 'combat' || !document.getElementById('modal').hidden) return;
+  if (e.key === 'e' || e.key === 'E') endTurn();
+  else if (/^[1-9]$/.test(e.key)) A.play(+e.key - 1);
+  else if (e.key === 'Escape' && G.combat.sel >= 0) { G.combat.sel = -1; render(); }
+});
+
+/* ---------- boot ---------- */
+function start(data) {
+  if (data && data.G) { G = data.G; if (G.combat) { G.combat.busy = false; G.combat.act = null; } }
+  render();
+}
+window.claude?.hot?.snapshot?.(() => ({ G }));
+window.claude?.hot?.ready ? window.claude.hot.ready(start) : start(window.claude?.hot?.data ?? {});
+</script>
